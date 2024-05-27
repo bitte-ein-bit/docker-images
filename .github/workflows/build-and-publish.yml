@@ -35,34 +35,50 @@ jobs:
           from os import environ, path
           import json
           import sys
+          import os
 
           before = environ.get('BEFORE', '4b825dc642cb6eb9a060e54bf8d69288fbee4904')
+          print('Comparing to ' + before)
 
           if environ.get('GITHUB_STEP_SUMMARY', '') != '':
               print('GITHUB_STEP_SUMMARY is set to ' + environ.get('GITHUB_STEP_SUMMARY'))
               sys.stdout = open(environ.get('GITHUB_STEP_SUMMARY'), 'a')
 
-
-          p = subprocess.Popen(['git', 'diff', '--name-only', '-z', before, 'HEAD'], stdout=subprocess.PIPE)
-          out, err = p.communicate()
           folders = []
+          try:
+            p = subprocess.Popen(['git', 'diff', '--name-only', '-z', before, 'HEAD'], stdout=subprocess.PIPE)
+            out, err = p.communicate()
+            if err:
+                raise ValueError(f'Git call had error output: {err}')
+            if p.returncode != 0:
+                raise ValueError(f'Git call failed with: {p.returncode}')
 
-          print(f'These files changed:\n')
+            print(f'These files changed:\n')
 
-          for file in out.decode().split('\0'):
-              print(f'* {file}')
-              # if file doesn't contain a / it's not a dockerfile to build
-              if '/' not in file:
-                  continue
-              # split the file path into a list
-              folder = file.split('/')[0]
+            for file in out.decode().split('\0'):
+                print(f'* {file}')
+                # if file doesn't contain a / it's not a dockerfile to build
+                if '/' not in file:
+                    continue
+                # split the file path into a list
+                folder = file.split('/')[0]
 
-              # if the folder is already in the list, skip it
-              if folder in folders:
-                  continue
-              # if the folder contains a file named Dockerfile, add it to the list
-              if path.exists(f'{folder}/Dockerfile'):
-                  folders.append(folder)
+                # if the folder is already in the list, skip it
+                if folder in folders:
+                    continue
+                # if the folder contains a file named Dockerfile, add it to the list
+                if path.exists(f'{folder}/Dockerfile'):
+                    folders.append(folder)
+          except ValueError as e:
+              print(f'Diff calculation failed: {e}')
+              print('falling back to all folders')
+              # find all folders that contain a Dockerfile
+              # and add them to the list of folders to build
+              for folder in filter(os.path.isdir, os.listdir(os.getcwd())):
+                  if path.exists(f'{folder}/Dockerfile'):
+                      folders.append(folder)
+
+
 
           # print the list of folders
           print(f'Folders to build:\n')
@@ -114,7 +130,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}
           flavor: latest=true
