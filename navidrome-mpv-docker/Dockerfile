@@ -1,1 +1,0 @@
-https://github.com/bitte-ein-bit/navidrome-mpv-docker/blob/main/Dockerfile
