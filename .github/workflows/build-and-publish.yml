@@ -30,7 +30,6 @@ jobs:
         shell: python
         env:
           BEFORE: ${{ github.event.before }}
-          PROJECT_IMAGE_MAP: '{"proj1": "docker-image-1", "proj2": "docker-image-2", "proj3": "docker-image-3"}'
         run: |
           import subprocess
           from os import environ, path
@@ -40,6 +39,7 @@ jobs:
           before = environ.get('BEFORE', '4b825dc642cb6eb9a060e54bf8d69288fbee4904')
 
           if environ.get('GITHUB_STEP_SUMMARY', '') != '':
+              print('GITHUB_STEP_SUMMARY is set to ' + environ.get('GITHUB_STEP_SUMMARY'))
               sys.stdout = open(environ.get('GITHUB_STEP_SUMMARY'), 'a')
 
 
