@@ -69,11 +69,15 @@ jobs:
           for folder in folders:
               print(f'* {folder}')
 
-          if environ.get("GITHUB_OUTPUT") is None:
-              print('GITHUB_OUTPUT is not set')
+          if environ.get("GITHUB_ENV") is None:
+              print('GITHUB_ENV is not set')
               sys.exit(1)
-          with open(environ.get("GITHUB_OUTPUT"), 'a') as f:
+          with open(environ.get("GITHUB_ENV"), 'a') as f:
               f.write('IMAGES_TO_BUILD=' + json.dumps(folders) + '\n')
+      - name: Set image names as output for matrix
+        id: set_images
+        run: |
+          echo "IMAGES_TO_BUILD=${IMAGES_TO_BUILD}" >> $GITHUB_OUTPUT
 
   print_image_names_with_matrix:
     name: "Build image: ${{ matrix.image }}"
