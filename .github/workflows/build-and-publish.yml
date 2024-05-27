@@ -22,54 +22,57 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get changed files manually
-        run: |
-          files_list="$(git diff --name-only ${{ github.event.before }} HEAD | xargs)"
-          echo '# Files with git command' >> "${GITHUB_STEP_SUMMARY}"
-          echo '' >> "${GITHUB_STEP_SUMMARY}"
-          echo '```' >> "${GITHUB_STEP_SUMMARY}"
-
-          for file in ${files_list}; do
-            echo "$file was changed" >> "${GITHUB_STEP_SUMMARY}"
-          done
-
-          echo '```' >> "${GITHUB_STEP_SUMMARY}"
-
-          # save files into variable
-          printf 'THE_FILES=%s\n' "${files_list}" >> "${GITHUB_ENV}"
-
-      # Since output of tj-actions/changed-files and 
+      # Since output of tj-actions/changed-files and
       - name: Get docker image names
         # I'm familiar with python so will use it to parse file names
         # be careful if you have spaces into file names
         shell: python
         env:
+          BEFORE: ${{ github.event.before }}
           PROJECT_IMAGE_MAP: '{"proj1": "docker-image-1", "proj2": "docker-image-2", "proj3": "docker-image-3"}'
         run: |
-          from os import environ
+          import subprocess
+          from os import environ, path
           import json
-          
-          # split files string into a list. Divide by spaces
-          files = environ.get("THE_FILES").split(' ')
-          proj_image_map = json.loads(environ.get("PROJECT_IMAGE_MAP"))
+          import sys
 
-          images = []
+          before = environ.get('BEFORE', '4b825dc642cb6eb9a060e54bf8d69288fbee4904')
 
-          # check if proj1, proj2, etc. is a part of the changed file path
-          for file in files:
-            for k, v in proj_image_map.items():
-              if k in file:
-                if v not in images:
-                  images.append(v)
+          if environ.get('GITHUB_STEP_SUMMARY', '') != '':
+              sys.stdout = open(environ.get('GITHUB_STEP_SUMMARY'), 'a')
 
-          # save retrieved images as JSON array
-          with open(environ.get("GITHUB_ENV"), 'a') as f:
-            f.write('IMAGES_TO_BUILD=' + json.dumps(images) + '\n')
-      
-      - name: Set image names as output for matrix
-        id: set_images
-        run: |
-          echo "IMAGES_TO_BUILD=${IMAGES_TO_BUILD}" >> $GITHUB_OUTPUT
+
+          p = subprocess.Popen(['git', 'diff', '--name-only', '-z', before, 'HEAD'], stdout=subprocess.PIPE)
+          out, err = p.communicate()
+          folders = []
+
+          print(f'These files changed:\n')
+
+          for file in out.decode().split('\0'):
+              print(f'* {file}')
+              # if file doesn't contain a / it's not a dockerfile to build
+              if '/' not in file:
+                  continue
+              # split the file path into a list
+              folder = file.split('/')[0]
+
+              # if the folder is already in the list, skip it
+              if folder in folders:
+                  continue
+              # if the folder contains a file named Dockerfile, add it to the list
+              if path.exists(f'{folder}/Dockerfile'):
+                  folders.append(folder)
+
+          # print the list of folders
+          print(f'Folders to build:\n')
+          for folder in folders:
+              print(f'* {folder}')
+
+          if environ.get("GITHUB_OUTPUT") is None:
+              print('GITHUB_OUTPUT is not set')
+              sys.exit(1)
+          with open(environ.get("GITHUB_OUTPUT"), 'a') as f:
+              f.write('IMAGES_TO_BUILD=' + json.dumps(folders) + '\n')
 
   print_image_names_with_matrix:
     name: "Build image: ${{ matrix.image }}"
@@ -79,17 +82,6 @@ jobs:
       matrix:
         image: ${{ fromJson( needs.get_manually.outputs.IMAGES_TO_BUILD ) }}
 
-    steps:
-      - name: Print image name from matrix
-        run: |
-          echo "${{ matrix.image }}"
-
-          build-and-push-image:
-    name: "BUILD: ${{ matrix.name }}"
-    runs-on: ubuntu-latest
-    needs: prep
-    strategy:
-      matrix: ${{fromJson(needs.prep.outputs.matrix)}}
     permissions:
       contents: read
       packages: write
@@ -97,7 +89,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
@@ -109,20 +101,17 @@ jobs:
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
-          images: ${{ matrix.docker-image-name }}
+          images: ${{ matrix.image }}
           flavor: latest=true
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-      - name: Restore dependencies
-        shell: bash
-        run: dotnet restore
-        
-      - name: Build and push Docker image ${{ matrix.name }}
+
+      - name: Build and push Docker image ${{ matrix.image }}
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
-          context: ${{matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ${{ matrix.image }}
+          file: Dockerfile
           push: true
-          tags: ${{ matrix.docker-image-name }}:${{ github.sha }}
+          tags: ${{ matrix.image }}:${{ github.sha }}
