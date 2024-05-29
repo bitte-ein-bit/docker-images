@@ -137,7 +137,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=schedule,pattern={{date 'YYY.MM.DD'}}
+            type=schedule,pattern={{date 'YYYY.MM.DD'}}
             type=sha
             type=semver,pattern={{version}}
 
