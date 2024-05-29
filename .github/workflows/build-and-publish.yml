@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - main
-      - bitte-ein-bit-patch-1
+  schedule:
+    - cron: "15 4 1 * *"
 
 jobs:
   get_manually:
@@ -139,7 +140,6 @@ jobs:
             type=ref,event=pr
             type=schedule,pattern={{date 'YYYY.MM.DD'}}
             type=sha
-            type=semver,pattern={{version}}
 
       - name: Build and push Docker image ${{ matrix.image }}
         id: push
