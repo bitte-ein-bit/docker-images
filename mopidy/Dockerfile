@@ -6,8 +6,11 @@ RUN apt-get update && \
     wget -q -O /etc/apt/keyrings/mopidy-archive-keyring.gpg https://apt.mopidy.com/mopidy.gpg && \
     wget -q -O /etc/apt/sources.list.d/mopidy.list https://apt.mopidy.com/bullseye.list && \
     apt-get update && \
-    apt-get install mopidy -y && \
+    apt-get install mopidy gstreamer1.0-libav/stable -y && \
     apt-get clean && \
     python3 -m pip install Mopidy-Subidy Mopidy-Iris --break-system-packages && \
     rm -rf /var/lib/apt/lists/* /root/.cache/* /tmp/*
+    # && \
+    # mkdir /etc/mopidy/ && \
+    # ln -s /root/.config/mopidy/ /etc/mopidy/
 CMD [ "mopidy" ]
