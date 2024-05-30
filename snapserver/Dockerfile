@@ -14,7 +14,7 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     pkgconfig \
-    py3-gobject3 \
+    py3-gobject3 && \
     # For snapweb
     wget -O /tmp/snapweb.zip https://github.com/badaix/snapweb/releases/download/${SNAPWEB_VERSION}/snapweb.zip && \
     cd /usr/share/snapserver/snapweb && \
