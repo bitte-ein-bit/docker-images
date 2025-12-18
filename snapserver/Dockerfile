@@ -3,7 +3,7 @@ FROM python:3.12-alpine3.20
 # renovate: datasource=repology depName=alpine_3_20/snapcast versioning=loose
 ARG SNAPCAST_VERSION=0.28.0-r1
 # renovate: datasource=github-releases depName=badaix/snapweb
-ARG SNAPWEB_VERSION=v0.7.0
+ARG SNAPWEB_VERSION=v0.9.3
 
 RUN apk add --no-cache \
     bash \
